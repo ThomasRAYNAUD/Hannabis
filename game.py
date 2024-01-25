@@ -5,54 +5,61 @@ import signal
 from multiprocessing import Process
 import multiprocessing as mp
 import sys
-# Définition du type Carte
+
+
 Carte = (str, int)
 
-# Définition du type PileCouleur
 class Pile:
-    def __init__(self, couleur):
+    def __init__(self, couleur): 
         self.couleur = couleur
         self.valeur = 0
 
-# Définition du type Joueur
+
 class Joueur:
-    def __init__(Joueur, nom, cartes):
+    def __init__(Joueur, nom, cartes):  
         Joueur.nom = nom
         Joueur.cartes = cartes
-        
-
-# Définition du type Jetons
 class Jetons:
     def __init__(self, nombre_de_joueurs):
         self.infos = 3 + nombre_de_joueurs
         self.fuse = 3
 
-# Fonction pour créer un jeu de cartes avec un nombre spécifié de couleurs
-def creer_jeu_de_cartes(n):
-    couleurs = ["Rouge", "Bleu", "Vert", "Jaune", "Noir"][:n]
+def creer_jeu_de_cartes():
+    couleurs = ["r", "b", "v", "j", "n"]
     nombres = [1, 2, 3, 4, 5]
-    return [(couleur, nombre) for couleur in couleurs for nombre in nombres]
+    cartes = []
 
-# Fonction pour tirer aléatoirement 5 cartes pour chaque joueur
-def tirer_mains_des_joueurs(nombre_de_joueurs):
-    jeu_de_cartes = creer_jeu_de_cartes(nombre_de_joueurs)
+    for couleur in couleurs:
+        for nombre in nombres:
+            if nombre == 1:
+                nb_exemplaires = 3
+            elif 2 <= nombre <= 4:
+                nb_exemplaires = 2
+            else:
+                nb_exemplaires = 1
+            for _ in range(nb_exemplaires):
+                cartes.append((couleur, nombre))
+
+    return cartes
+
+
+def tirer_mains_des_joueurs(nombre_de_joueurs, jeu_de_cartes):
     return {
         f"Joueur {i+1}": Joueur(f"Joueur {i+1}", random.sample(jeu_de_cartes, 5))
         for i in range(nombre_de_joueurs)
     }
 
-# Nombre de joueurs
-nombre_de_joueurs = 3
+cartes = creer_jeu_de_cartes()
+print(cartes)
+
+nombre_de_joueurs = 2
 jetons = Jetons(nombre_de_joueurs)
 
-# Création des piles de couleurs
-couleurs = ["Rouge", "Bleu", "Vert", "Jaune", "Noir"]
+couleurs = ["R", "B", "V", "J", "N"]
 piles_couleurs = {couleur: Pile(couleur) for couleur in couleurs[:nombre_de_joueurs]}
 
-# Tirer les mains des joueurs
-joueurs = tirer_mains_des_joueurs(nombre_de_joueurs)
+joueurs = tirer_mains_des_joueurs(nombre_de_joueurs, cartes)
 
-# Affichage des mains des joueurs et incrémentation des piles de couleurs
 for joueur, info in joueurs.items():
     print(f"{info.nom} :")
     for carte in info.cartes:
@@ -60,7 +67,8 @@ for joueur, info in joueurs.items():
 
 print("Piles Couleurs :")
 for pile in piles_couleurs.values():
-    print(f"  Couleur : {pile.couleur} - État : {pile.valeur}")
+    print(f"{pile.couleur}, {pile.valeur}")
+
 
 print("Jetons disponibles :")
 print("Jetons Fuse :", jetons.fuse, "\nJetons Infos :", jetons.infos)
@@ -69,30 +77,26 @@ HOST = "localhost"
 PORT = 25425
 
 def handler(sig, frame):
-    # Gestionnaire pour SIGINT (Ctrl+C)
+
     if sig == signal.SIGINT:
         print("Received SIGINT. Exiting...")
         sys.exit()
 
-def connection(client_socket, address):
-    # Fonction pour gérer la connexion avec un client
+def connection(client_socket, address, joueurs):
     with client_socket:
-        print("Connected to client:", address)
-        try:
-            while True:
-                    for carte in info.cartes:
-                        data = f"Carte : {carte[0]} - Numéro : {carte[1]}"
-                        client_socket.send(data.encode('utf-8'))
-                    if not data:
-                        break
-                    client_socket.sendall(data)
-        except (socket.error, BrokenPipeError):
-            pass  # Gestion des erreurs de connexion
+        print(f"Connected to client: {address}")
 
-        print("Disconnecting from client:", address)
+        for joueur, info in joueurs.items():
+            data = f"Joueur {info.nom} : {info.cartes}\n"
+            client_socket.send(data.encode('utf-8'))
+            print(data)
+        client_socket.send(b"FIN")
+
+        print(f"Disconnecting from client: {address}")
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, handler)
+    
     # Configuration du socket du serveur
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -102,12 +106,9 @@ if __name__ == "__main__":
         print(f"Server is listening on {HOST}:{PORT}")
 
         while True:
-            # Attente d'une nouvelle connexion
             print("Waiting for a connection...")
             client_socket, address = server_socket.accept()
-
-            # Création d'un processus pour gérer la connexion avec le client
-            p = Process(target=connection, args=(client_socket, address))
+            p = Process(target=connection, args=(client_socket, address, joueurs))
             p.start()
 
 
