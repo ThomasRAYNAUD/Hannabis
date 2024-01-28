@@ -35,5 +35,5 @@ Afin de lancer les scripts, il faut dans un premier temps cloner le dépot githu
 git clone https://github.com/ThomasRAYNAUD/Hannabis.git
 cd Hannabis
 cd [dossier voulu]
-python3 ./script.py //lancer un script
+python3 ./script.py #lancer un script
 ```
