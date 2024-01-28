@@ -1,0 +1,163 @@
+import random
+import socket
+import os
+import signal
+import time
+import sys
+from multiprocessing import Process, shared_memory, Value
+import numpy as np
+
+def create_shared_memory(client_socket, nbr_player):
+    # Utilisation de np.zeros pour créer un tableau de zéros plutôt que np.array([])
+    shared = np.zeros(nbr_player + 2, dtype=np.int64)
+    
+    # Modification des valeurs dans le tableau
+    shared[0] = 3
+    shared[1] = nbr_player + 3
+    
+    # Création de la mémoire partagée
+    shm = shared_memory.SharedMemory(create=True, size=shared.nbytes)
+    
+    # Copie des valeurs du tableau dans la mémoire partagée
+    shared_array = np.ndarray(shared.shape, dtype=shared.dtype, buffer=shm.buf)
+    shared_array[:] = shared[:]
+    
+    print("Tableau partagé (BEG) :", shared_array)
+    
+    # Envoi du nom de la mémoire partagée au client
+    mess = shm.name
+    print(mess)
+    client_socket.sendall(mess.encode())
+    while True:
+        client_socket.recv(1024).decode()
+        
+        print("Tableau partagé (END) :", shared_array)
+        print(shared_array[4])
+
+        # Commentez les deux lignes suivantes pour que la mémoire partagée reste ouverte
+        shm.close()
+        #shm.unlink()
+        
+        # Ajout d'une pause pour éviter des problèmes potentiels lors de la fermeture rapide
+        time.sleep(1)
+
+
+def creer_jeu_de_cartes(nombre_joueurs):
+    couleurs = ["r", "b", "v", "j", "n"]
+    couleurs_joueurs = random.sample(couleurs, k=nombre_joueurs)
+
+    nombres = np.array([1, 2, 3, 4, 5])
+    cartes = []
+
+    for couleur in couleurs_joueurs:
+        for nombre in nombres:
+            if nombre == 1:
+                nb_exemplaires = 3
+            elif 2 <= nombre <= 4:
+                nb_exemplaires = 2
+            else:
+                nb_exemplaires = 1
+            for _ in range(nb_exemplaires):
+                cartes.append(couleur + str(nombre))
+
+    random.shuffle(cartes)
+
+    return cartes
+
+def handler(sig, frame):
+    if sig == signal.SIGINT:
+        print("Reçu SIGINT. Sortie...")
+        sys.exit()
+
+def clear_terminal():
+    os.system('clear')
+
+def send(type, client_socket, val=None):
+    if type == "N":
+        m = type + "|" + "Combien de joueurs dans la partie ? "
+        client_socket.sendall(m.encode('utf-8'))
+        print("etes")
+    elif type == "P":
+        m = "P" + "|" + "|".join(map(str, val))
+        client_socket.sendall(m.encode('utf-8'))
+
+def receive(client_socket):
+    data = client_socket.recv(1024)
+    return decode(data)
+
+def decode(message):
+    message_parts = message.decode('utf-8').split("|")
+    return message_parts
+
+def type(tab):
+    if tab[0] == "N":
+        return tab[1]
+    elif tab[0] == "P":
+        return tab[1]
+
+def nombrePlayer(client_socket):
+    try:
+        send("N", client_socket, 0)
+        tab_data = receive(client_socket)
+        return type(tab_data)
+    except Exception as e:
+        print(f"Erreur lors de la communication avec le client : {e}")
+        return None
+
+def create_server_socket(port, lis):
+    HOST = "localhost"
+    PORT = port
+    try:
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind((HOST, PORT))
+        server_socket.listen(lis)
+        print("En attente de connexion...")
+        client_socket, address = server_socket.accept()
+        print("Connecté au client :", address)
+        return server_socket, client_socket
+    except Exception as e:
+        print(f"Erreur lors de la création du socket : {e}")
+        sys.exit()
+
+def card_com(pile, client_socket):
+    try:
+        send("P", client_socket, pile)
+        tab_data = receive(client_socket)
+        return type(tab_data)
+    except Exception as e:
+        print(f"Erreur lors de la communication des piles : {e}")
+        return None
+
+def traitement_client(client_socket, address,nbr_player):
+    with client_socket:
+        print("Connected to client: ", address)
+        create_shared_memory(client_socket, nbr_player)
+
+def main():
+    clear_terminal()
+    signal.signal(signal.SIGINT, handler)
+    
+    server_socket, client_socket = create_server_socket(20000, 2)
+    n_player = nombrePlayer(client_socket)
+    nbr_player = int(n_player)
+    print("Le nombre de joueurs est le suivant :", n_player)
+
+    pile = creer_jeu_de_cartes(nbr_player)
+    ret_P = card_com(pile, client_socket)
+    print(ret_P)
+
+    server_socket.close()
+
+    num = Value('d', 1)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+        server_socket.bind(("localhost", 20002))
+        server_socket.listen(nbr_player)
+
+        while True:
+            client_socket, address = server_socket.accept()
+            p = Process(target=traitement_client, args=(client_socket, address,nbr_player))
+            p.start()
+
+if __name__ == "__main__":
+    main()
