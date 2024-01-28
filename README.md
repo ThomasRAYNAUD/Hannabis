@@ -25,9 +25,9 @@ pip install numpy
 Il n'est pas nécessaire d'installer des paquets supplémentaires.
 
 Dossier "mainAndSharedMemory" :
-> Contient deux codes
--
--
+> Contient les deux codes fusionnés
+- game.py
+- player.py
 
 ## Lancer les scripts : 
 Afin de lancer les scripts, il faut dans un premier temps cloner le dépot github : 
