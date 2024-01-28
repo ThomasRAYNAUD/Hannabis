@@ -32,6 +32,8 @@ Dossier "mainAndSharedMemory" :
 ## Lancer les scripts : 
 Afin de lancer les scripts, il faut dans un premier temps cloner le dépot github : 
 ```bash
-git clone
-
+git clone https://github.com/ThomasRAYNAUD/Hannabis.git
+cd Hannabis
+cd [dossier voulu]
+python3 ./script.py //lancer un script
 ```
