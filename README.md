@@ -24,7 +24,7 @@ pip install numpy
 
 Il n'est pas nécessaire d'installer des paquets supplémentaires.
 
-Dossier "mainAndSharedMemory" :
+## Dossier "mainAndSharedMemory" :
 > Contient les deux codes fusionnés
 - game.py
 - player.py
