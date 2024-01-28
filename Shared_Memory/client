@@ -1,0 +1,189 @@
+
+import socket
+import os
+import sys
+from multiprocessing import Process, Semaphore, Value
+from multiprocessing import shared_memory
+import time
+import numpy as np
+import multiprocessing.resource_tracker as resource_tracker
+import signal
+from multiprocessing import Lock
+import signal
+from multiprocessing import Process, shared_memory
+import threading
+shared_memory_lock = threading.Lock()
+
+def receive(client_socket):
+    data = client_socket.recv(1024)
+    return decode(data)
+
+def decode(message):
+    message_parts = message.decode('utf-8').split("|")
+    return message_parts
+
+def type(tab):
+    if tab[0] == "N":
+        return tab[1]
+
+def player(tab_data):
+    verif = True
+    while verif:
+        try:
+            val = int(input(tab_data[1]))
+            print(val)
+            if 2 <= val <= 5:
+                verif = False
+                return val
+            else:
+                print("Veuillez entrer un entier entre 2 et 5.")
+        except ValueError:
+            print("Veuillez entrer un entier entre 2 et 5.")
+
+def send(type, mess, client_socket):
+    if type == "N":
+        chaine = str(mess)
+        m = type + "|" + chaine
+        print(m)
+        client_socket.sendall(m.encode('utf-8'))
+    if type == "P":
+        m = type + "|" + mess
+        client_socket.sendall(m.encode('utf-8'))
+
+def clear_terminal():
+    os.system('clear')
+
+def create_socket(host, port):
+    
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((host, port))
+    return client_socket
+
+def comparer_liste(nombre, liste):
+    for i in liste:
+        if liste[i] + 1 == nombre:
+            print("okk")
+            print(nombre)
+            liste[i] = liste[i]+1
+        else:
+            print("NOOON")
+    return liste
+
+
+def create_socket_2(host, port):
+    
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((host, port))
+    jouer_carte()
+    time.sleep(3)
+    use_infos()
+    return client_socket
+
+
+def signal_handler(signal, frame,existing_shm):
+    print("Interruption manuelle détectée. Libération des ressources...")
+    existing_shm.close()
+    client_socket.close()
+
+def remove_shm_from_resource_tracker():
+    def fix_register(name, rtype):
+        if rtype == "shared_memory":
+            return
+        return resource_tracker._resource_tracker.register(name, rtype)
+
+    resource_tracker.register = fix_register
+
+    def fix_unregister(name, rtype):
+        if rtype == "shared_memory":
+            return
+        return resource_tracker._resource_tracker.unregister(name, rtype)
+
+    resource_tracker.unregister = fix_unregister
+
+    if "shared_memory" in resource_tracker._CLEANUP_FUNCS:
+        del resource_tracker._CLEANUP_FUNCS["shared_memory"]
+
+def reconize(card):
+    if card[0]=="b":
+        a = 2
+        return a
+    elif card[0]=="v":
+        a = 3
+        return a
+    elif card[0]=="n":
+        a = 4
+        return a
+    elif card[0]=="r":
+        a = 5
+        return a
+    elif card[0]=="j":
+        a = 6
+        return a
+    else:
+        print("mauvaise carte")
+
+def jouer_carte():
+    with shared_memory_lock:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        signal.signal(signal.SIGINT, signal_handler)
+        try:
+            client_socket.connect(("localhost", 20002))
+            data = str(client_socket.recv(10240).decode())
+            remove_shm_from_resource_tracker()
+            existing_shm = shared_memory.SharedMemory(name=data)
+            shared_array = np.ndarray((7,), dtype=np.int64, buffer=existing_shm.buf)
+            print("Tableau partagé (avant jouer_carte) :", shared_array)
+            card = "r1"
+            a = reconize(card)
+            if int(shared_array[a]) + 1 == int(card[1]):
+                print("Bravo !")
+                print("La pile a été mise à jour :", card)
+                shared_array[a] = shared_array[a] + 1
+                print("Tableau partagé (après jouer_carte) :", shared_array)
+            else:
+                shared_array[0] = shared_array[0] - 1
+                print("Oups... tu perds un jeton fuse, il en reste : ", shared_array[0])
+        finally:
+            # Fermer la connexion et libérer la mémoire partagée
+            client_socket.close()
+            existing_shm.close()
+
+        return shared_array
+    
+def use_infos():
+    with shared_memory_lock:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        signal.signal(signal.SIGINT, signal_handler)
+        try:
+            client_socket.connect(("localhost", 20002))
+            data = str(client_socket.recv(10240).decode())
+            remove_shm_from_resource_tracker()
+            existing_shm = shared_memory.SharedMemory(name=data)
+            shared_array = np.ndarray((7,), dtype=np.int64, buffer=existing_shm.buf)
+            shared_array[1] = shared_array[1] - 1
+            print("Tu as utilisé un jeton info, il n'en reste plus que :", shared_array[1])
+        finally:
+            # Fermer la connexion et libérer la mémoire partagée
+            client_socket.close()
+            existing_shm.close()
+
+        return shared_array
+    
+if __name__ == "__main__":
+    clear_terminal()
+    HOST = "localhost"
+    with create_socket(HOST, 20000) as client_socket:
+        tab_data = receive(client_socket)
+        nb_player = player(tab_data)
+        send("N", nb_player, client_socket)
+        tab_data = receive(client_socket)
+        send("P", "Bien reçu paquet de cartes", client_socket)
+        tab_data = tab_data[1:]
+    time.sleep(1)
+    for _ in range(int(nb_player-1)):
+        p = Process(target=create_socket, args=(HOST, 20002) ) 
+        p.start()
+    p1= Process(target=create_socket_2, args=(HOST, 20002))
+    p1.start()
+    p.join()
+    p1.join()
