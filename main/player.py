@@ -1,6 +1,6 @@
 import sys, signal, os, socket, time
 import threading
-from multiprocessing import Process, Pipe, Array,Lock,Semaphore
+from multiprocessing import Process, Pipe, Array,Semaphore
 import sysv_ipc
 
 nbr_player = None
