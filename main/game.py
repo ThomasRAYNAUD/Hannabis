@@ -83,9 +83,9 @@ def creer_jeu_de_cartes(nombre_joueurs):
     for couleur in couleurs_joueurs:
         for nombre in nombres:
             if nombre == 1:
-                nb_exemplaires = 3
+                nb_exemplaires = 1
             elif 2 <= nombre <= 4:
-                nb_exemplaires = 2
+                nb_exemplaires = 1
             else:
                 nb_exemplaires = 1
             for _ in range(nb_exemplaires):
@@ -120,7 +120,7 @@ def main(shared_array):
     
     server_socket=create_server_socket(5000,1)
     nbr_player = nombrePlayer(server_socket) # n_player est le nombre de joueurs : Int
-    shared_array[0]=3
+    shared_array[0]=3 
     shared_array[1]=3+nbr_player
     shared_array[2]=0
     shared_array[3]=0
