@@ -16,6 +16,7 @@ def handler(sig, frame):
     """Handler for SIGINT signal."""
     if sig == signal.SIGINT:
         print("Reçu SIGINT. Sortie...")
+        sys.exit(1)
 
 def create_socket(host, port):
     """Creates a client socket and returns it."""
@@ -101,7 +102,6 @@ def show_card(pile, numPlayer):
 
 def play(_, nbr_player, deck, shared_array, newstdin2, semaphore):
     """expliquer comment jouer"""
-    
     sys.stdin = newstdin2
     key = 128
     mq = sysv_ipc.MessageQueue(key)
@@ -122,6 +122,7 @@ def play(_, nbr_player, deck, shared_array, newstdin2, semaphore):
             elif t==6:
                 deck=message2[:]     
         try:
+            print(deck)
             compteur = 0
             if shared_array[2]==5:
                 compteur+=1
@@ -140,12 +141,24 @@ def play(_, nbr_player, deck, shared_array, newstdin2, semaphore):
             print("C'est à vous de jouer player " + str(numPlayer + 1) + " !")
             print("Vous avez " + str(shared_array[0]) + " token fuse.")
             print("Vous avez " + str(shared_array[1]) + " token informations.")
+            for i in range(2, 7): # de (2) à (7-1)
+                if deck[i] != 0:
+                    if i == 2:
+                        print("Vous avez " + str(shared_array[i]) + ": cartes vertes.")
+                    elif i == 3:
+                        print("Vous avez " + str(shared_array[i]) + ": cartes jaunes.")
+                    elif i == 4:
+                        print("Vous avez " + str(shared_array[i]) + ": cartes bleues.")
+                    elif i == 5:
+                        print("Vous avez " + str(shared_array[i]) + ": cartes rouges.")
+                    elif i == 6:
+                        print("Vous avez " + str(shared_array[i]) + ": cartes noires.")
             print("Les cartes de vos collègues sont les suivantes :")
             show_card(deck, numPlayer)
             time.sleep(0.1)  # import time
             if indice != "":
                 print("Les informations que vous avez reçu sont les suivantes :", indice)
-            message = f"Joueur {numPlayer+1} : Voulez-vous donner une information [1] ou jouer une carte [2] ?"
+            message = f"Joueur {numPlayer+1} : Voulez-vous donner une information [1] ou jouer une carte [2] ? "
             user_input = input(message)
             while not check_input(user_input):
                 user_input = input("Entrez un nombre (1 ou 2) : ")
@@ -170,12 +183,12 @@ def play(_, nbr_player, deck, shared_array, newstdin2, semaphore):
         time.sleep(0.1)
 
 def jouer_carte(numPlayer, deck, shared_array):
-    """expliquer comment jouer une carte"""
+    """jouer une carte"""
     numPlayer = (numPlayer + 1)
     valid_input = False
     while not valid_input:
         try:
-            message = f"Quelle carte voulez-vous jouer ?"
+            message = f"Quelle carte voulez-vous jouer ? "
             user_input = input(message)
             user_input = int(user_input)
             if 1 <= user_input <= 5:
@@ -198,6 +211,20 @@ def sortir_carte(num_carte,numPlayer,deck,shared_array):
     j=i+num_carte
     valid=True
     print("La carte que vous décidez de jouer : ",deck[j-1])
+    while deck[j-1] == "N":
+        print("Vous n'avez pas de carte à cet emplacement (pioche vide) !")
+        
+        try:
+            num2 = int(input("Veuillez choisir une autre carte (entrez un nombre) : "))
+            if 0 < num2 < 6:
+                j = i + num2
+            else:
+                print("Choix de carte invalide. Veuillez choisir un nombre entre 1 et 5.")
+        except ValueError: # gestion d'erreru si lettre
+            print("Veuillez entrer un nombre valide.")
+
+    print("La carte que vous décidez de jouer : ",deck[j-1])
+    
     carte = deck[j-1]
     if carte[0] == 'b':
         if int(carte[1]) == (shared_array[4] + 1):
@@ -249,7 +276,7 @@ def information(nbr_player, numPlayer, deck,mq):
     valid_input = False
     while not valid_input:
         try:
-            message = f"Tu veux dire une information à quel joueur ?"
+            message = f"Tu veux dire une information à quel joueur ? "
             user_input = input(message)
             user_input = int(user_input)
 
@@ -264,7 +291,7 @@ def information(nbr_player, numPlayer, deck,mq):
     valid_input = False
     while not valid_input:
         try:
-            carte = f"Que veux-tu dévoiler (bleu, rouge,...,1, 2...)  ?"
+            carte = f"Que veux-tu dévoiler (bleu, rouge,...,1, 2...)  ? "
             print(carte)
             user_input2 = input()
             ind = find_indices(deck, user_input2, user_input)
