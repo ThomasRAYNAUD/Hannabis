@@ -83,9 +83,9 @@ def creer_jeu_de_cartes(nombre_joueurs):
     for couleur in couleurs_joueurs:
         for nombre in nombres:
             if nombre == 1:
-                nb_exemplaires = 1
+                nb_exemplaires = 3
             elif 2 <= nombre <= 4:
-                nb_exemplaires = 1
+                nb_exemplaires = 2
             else:
                 nb_exemplaires = 1
             for _ in range(nb_exemplaires):
